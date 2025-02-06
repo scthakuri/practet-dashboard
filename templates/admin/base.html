@@ -1,7 +1,7 @@
-{% load i18n static practet_dashboard admin_urls %}
+{% load i18n static dashub admin_urls %}
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
-{% get_practet_dashboard_settings request as practet_dashboard_settings %}
+{% get_dashub_settings request as dashub_settings %}
 
 <!DOCTYPE html>
 <html lang="{{ LANGUAGE_CODE|default:"en-us" }}" {% if LANGUAGE_BIDI %}dir="rtl"{% endif %}>
@@ -11,7 +11,7 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="robots" content="none, noarchive">
 
-    <title>{% block title %}{{ title }}{% endblock %} | {{ practet_dashboard_settings.site_title }}</title>
+    <title>{% block title %}{{ title }}{% endblock %} | {{ dashub_settings.site_title }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,20 +27,20 @@
     <link rel="stylesheet" href="{% static 'assets/css/style.css' %}" id="main-style-link">
     <style>
         :root {
-            --primary: {{ practet_dashboard_settings.theme_color }};
-            --primary-rgb: {{ practet_dashboard_settings.theme_color_rgb }};
-            --td-active-bg: {{ practet_dashboard_settings.theme_color }};
+            --primary: {{ dashub_settings.theme_color }};
+            --primary-rgb: {{ dashub_settings.theme_color_rgb }};
+            --td-active-bg: {{ dashub_settings.theme_color }};
         }
     </style>
 
-    {% if practet_dashboard_settings.custom_css %}
+    {% if dashub_settings.custom_css %}
         <!-- Custom CSS -->
-        <link rel="stylesheet" href="{% static practet_dashboard_settings.custom_css %}">
+        <link rel="stylesheet" href="{% static dashub_settings.custom_css %}">
     {% endif %}
 
     <!-- favicons -->
-    <link rel="shortcut icon" href="{{ practet_dashboard_settings.site_icon }}" type="image/png">
-    <link rel="icon" href="{{ practet_dashboard_settings.site_icon }}" sizes="32x32" type="image/png">
+    <link rel="shortcut icon" href="{{ dashub_settings.site_icon }}" type="image/png">
+    <link rel="icon" href="{{ dashub_settings.site_icon }}" sizes="32x32" type="image/png">
 
     {% block extrastyle %} {% endblock %}
     {% block extrahead %} {% endblock %}
@@ -148,8 +148,8 @@
                 <div class="navbar-wrapper">
                     <div class="m-header">
                         <a href="" class="b-brand text-primary">
-                            <img src="{{ practet_dashboard_settings.site_logo }}" class="img-fluid logo-lg"
-                                 alt="{{ practet_dashboard_settings.site_title }}">
+                            <img src="{{ dashub_settings.site_logo }}" class="img-fluid logo-lg"
+                                 alt="{{ dashub_settings.site_title }}">
                         </a>
                     </div>
                     <div class="navbar-content">
@@ -316,15 +316,15 @@
             </footer>
             <!-- [ Footer ] end -->
 
-            {% if practet_dashboard_settings.show_ui_builder %}
-                {% include 'practet_dashboard/includes/ui_builder_panel.html' %}
+            {% if dashub_settings.show_ui_builder %}
+                {% include 'dashub/includes/ui_builder_panel.html' %}
             {% endif %}
         {% endif %}
     {% endblock %}
 
 </div>
 
-{% if practet_dashboard_settings.show_ui_builder %}
+{% if dashub_settings.show_ui_builder %}
     <div id="codeBox" class="modal fade" role="dialog">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -337,7 +337,7 @@
                     <pre><code></code></pre>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn {{ practet_dashboard_ui.button_classes.danger }}"
+                    <button type="button" class="btn {{ dashub_ui.button_classes.danger }}"
                             data-dismiss="modal">{% trans 'Close' %}</button>
                 </div>
             </div>
@@ -354,8 +354,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.11/dist/js/tempus-dominus.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@eonasdan/tempus-dominus@6.9.11/dist/js/jQuery-provider.js"></script>
 
-{% if practet_dashboard_settings.custom_js %}
-    <script src="{% static practet_dashboard_settings.custom_js %}"></script>
+{% if dashub_settings.custom_js %}
+    <script src="{% static dashub_settings.custom_js %}"></script>
 {% endif %}
 
 {% block extrajs %}{% endblock %}

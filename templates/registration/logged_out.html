@@ -1,9 +1,9 @@
 {% extends "registration/base.html" %}
-
-{% load i18n %}
+{% load dashub i18n %}
+{% get_dashub_settings request as dashub_settings %}
 
 {% block content %}
-    <p class="login-box-msg">{{ practet_dashboard_settings.welcome_sign }}</p>
+    <p class="login-box-msg">{{ dashub_settings.welcome_sign }}</p>
     <p class="text-center">
         {% trans "Thanks for spending some quality time with the web site today." %}
     </p>

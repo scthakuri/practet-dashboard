@@ -1,6 +1,6 @@
 {% extends "admin/base_site.html" %}
-{% load i18n admin_urls static admin_modify practet_dashboard %}
-{% get_practet_dashboard_settings request as practet_dashboard_settings %}
+{% load i18n admin_urls static admin_modify dashub %}
+{% get_dashub_settings request as dashub_settings %}
 
 {% block extrastyle %}
     {{ block.super }}
@@ -87,7 +87,7 @@
                 {% block after_related_objects %}{% endblock %}
 
                 <div class="col-12 col-lg-12">
-                    <div id="practet-actions" class="{{ practet_dashboard_ui.actions_classes }}">
+                    <div id="practet-actions" class="{{ dashub_ui.actions_classes }}">
                         {% block submit_buttons_bottom %}
                             {% submit_row %}
                             {% block object-tools %}
@@ -121,7 +121,7 @@
     {{  block.super }}
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script type="text/javascript" src="{% static 'assets/js/change_form.js' %}"></script>
-    {% if practet_dashboard_settings.related_modal_active %}
+    {% if dashub_settings.related_modal_active %}
     <script type="text/javascript" src="{% static 'assets/plugins/bootstrap-show-modal/bootstrap-show-modal.min.js' %}"></script>
     <script type="text/javascript" src="{% static 'assets/js/related-modal.js' %}"></script>
     {% endif %}

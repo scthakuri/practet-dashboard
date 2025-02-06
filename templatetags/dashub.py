@@ -1,9 +1,11 @@
+import copy
 import itertools
 import json
 import logging
 import urllib.parse
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib.admin import ListFilter
 from django.contrib.admin.helpers import AdminForm, Fieldset, InlineAdminFormSet
@@ -19,6 +21,7 @@ from django.template import Context, Library
 from django.template.defaultfilters import capfirst
 from django.template.loader import get_template
 from django.templatetags.static import static
+from django.urls import reverse
 from django.utils.html import escape, format_html
 from django.utils.safestring import SafeText, mark_safe
 from django.utils.text import get_text_list, slugify
@@ -33,7 +36,7 @@ from ..utils import (
     get_installed_apps,
     has_fieldsets_check,
     make_menu,
-    order_with_respect_to, order_menus_with_order,
+    order_with_respect_to,
 )
 
 User = get_user_model()
@@ -41,114 +44,136 @@ register = Library()
 logger = logging.getLogger(__name__)
 
 
-@register.simple_tag(takes_context=True)
-def get_side_menu(context: Context, using: str = "available_apps") -> List[Dict]:
+def get_model_info(model_path: str):
     """
-    Get the list of apps and models to render out in the side menu and on the dashboard page
+    Fetch model verbose name and admin list URL dynamically.
 
-    N.B - Permissions are not checked here, as context["available_apps"] has already been filtered by django
+    :param model_path: Model path in "app_label.ModelName" format.
+    :return: Dictionary with 'name' and 'url'.
+    """
+    try:
+        app_label, model_name = model_path.split(".")
+        model = apps.get_model(app_label, model_name)
+
+        verbose_name = model._meta.verbose_name_plural or model._meta.verbose_name
+        model_admin_url = reverse(f"admin:{app_label}_{model_name.lower()}_changelist")
+        return {"name": str(verbose_name), "url": model_admin_url}
+    except Exception as e:
+        return {"name": model_path, "url": "#"}
+
+
+@register.simple_tag(takes_context=True)
+def get_side_menu(context: Context, using: str = "available_apps") -> List[Dict[str, Any]]:
+    """
+    Generate the side menu with sorting, custom submenus, and additional custom links.
     """
     user = context.get("user")
     if not user:
         return []
 
     options = get_settings()
-    order_menus = options.get("order_menus", [])
-    ordering = options.get("order_with_respect_to", [])
-    ordering = [x.lower() for x in ordering]
-
+    default_orders = options.get("default_orders", {})
     installed_apps = get_installed_apps()
-    # available_apps: list[dict[str, Any]] = copy.deepcopy(context.get(using, []))
-
+    available_apps = copy.deepcopy(context.get(using, []))
     request = context.get("request")
-    from django.contrib import admin
-    available_apps = admin.site.get_app_list(request)
 
-    menu = []
+    if not available_apps:
+        from django.contrib import admin
+        available_apps = admin.site.get_app_list(request)
 
-    # Add any arbitrary groups that are not in available_apps
-    for app_label in options.get("custom_links", {}):
+    # Add custom apps if not already available
+    for app_label, links in options.get("custom_links", {}).items():
         if app_label.lower() not in installed_apps:
-            available_apps.append(
-                {
-                    "name": app_label,
-                    "app_label": app_label,
-                    "app_url": "#",
-                    "has_module_perms": True,
-                    "models": []
-                }
-            )
+            available_apps.append({
+                "name": app_label,
+                "app_label": app_label,
+                "app_url": "#",
+                "has_module_perms": True,
+                "models": [],
+                "order": links["order"] if "order" in links else default_orders.get(app_label, 0),
+            })
 
     custom_links = {
         app_name: make_menu(user, links, options, allow_appmenus=False)
         for app_name, links in options.get("custom_links", {}).items()
     }
 
-    submenus_models = options.get("submenus_models", [])
+    model_submenus = options.get("model_submenus", {})
+    submenus_models = set(options.get("submenus_models", []))
+    hidden_apps = set(options.get("hide_apps", []))
+    hidden_models = set(options.get("hide_models", []))
+    order_menus = options.get("order_menus", [])
+
+    menu = []
+
     for app in available_apps:
         app_label = app["app_label"]
-        app_custom_links = custom_links.get(app_label, [])
-        app["icon"] = options["icons"].get(app_label, options["default_icon_parents"])
-        if app_label in options["hide_apps"]:
+        if app_label in hidden_apps:
             continue
 
+        app["icon"] = options["icons"].get(app_label, options["default_icon_parents"])
+        app["order"] = order_menus[app_label] if app_label in order_menus else default_orders.get(app_label, 0)
+
         menu_items = []
+
         for model in app.get("models", []):
-            model_str = "{app_label}.{model}".format(app_label=app_label, model=model["object_name"]).lower()
-            if model_str in options.get("hide_models", []):
+            model_str = f"{app_label}.{model['object_name']}".lower()
+            if model_str in hidden_models:
                 continue
 
             model["url"] = model["admin_url"]
-            model["count"] = 0
+            model["count"] = model.get("model", {}).objects.count() if model.get("model") else 0
             model["model_str"] = model_str
             model["icon"] = options["icons"].get(model_str, options["default_icon_children"])
-
-            modal_object = model.get("model", None)
-            if modal_object:
-                model["count"] = modal_object.objects.count()
+            model["order"] = model.get("order", default_orders.get(model_str, 0))
 
             if model_str in submenus_models:
-                model["submenu"] = [
-                    {
-                        "name": "Add New",
-                        "url": model["add_url"],
-                    },
-                    {
-                        "name": model['name'],
-                        "url": model["url"],
-                    }
-                ]
+                submenu = [{"name": "Add New", "url": model["add_url"], "order": 0},
+                           {"name": model["name"], "url": model["url"], "order": 0}]
 
+                for submenu_item in model_submenus.get(model_str, []):
+                    if "model" in submenu_item:
+                        model_info = get_model_info(submenu_item["model"])
+                        submenu_item["name"] = model_info["name"]
+                        submenu_item["submenu_str"] = slugify(model_info["name"]).replace("-", "")
+                        submenu_item["url"] = model_info["url"]
+                        submenu_item["order"] = submenu_item["order"] if "order" in submenu_item else default_orders.get(submenu_item["submenu_str"], 0)
+                    submenu.append(submenu_item)
+                model["submenu"] = sorted(submenu, key=lambda x: x["order"], reverse=True)
             menu_items.append(model)
 
-        menu_items.extend(app_custom_links)
+        menu_items.extend(custom_links.get(app_label, []))
 
-        custom_link_names = [x.get("name", "").lower() for x in app_custom_links]
-        model_ordering = list(
-            filter(
-                lambda x: x.lower().startswith("{}.".format(app_label)) or x.lower() in custom_link_names,
-                ordering,
-            )
-        )
-
-        if len(menu_items):
-            if model_ordering:
-                menu_items = order_with_respect_to(
-                    menu_items,
-                    model_ordering,
-                    getter=lambda x: x.get("model_str", x.get("name", "").lower()),
-                )
-            app["models"] = menu_items
+        if menu_items:
+            app["models"] = sorted(menu_items, key=lambda x: x.get("order", 0))
             menu.append(app)
 
-    if ordering:
-        apps_order = list(filter(lambda x: "." not in x, ordering))
-        menu = order_with_respect_to(menu, apps_order, getter=lambda x: x["app_label"].lower())
+    return order_menus_with_order(menu, order_menus)
 
-    if order_menus:
-        menu = order_menus_with_order(menu, order_menus)
 
-    return menu
+def order_menus_with_order(menu: List[Dict[str, Any]], order_menus: List[str]) -> List[Dict[str, Any]]:
+    """
+    Sorts menu items based on `order_menus` list. Items not in the list will retain their original order.
+    This function ensures sorting in the following hierarchy: submenus → models → apps.
+    """
+    order_map = {label.lower(): index for index, label in enumerate(order_menus)}
+
+    def get_order_index(item: Dict[str, Any]) -> int:
+        """Returns the order index of an app."""
+        return order_map.get(item["app_label"].lower(), item.get("order", 0))
+
+    def sort_models(models: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Sort models inside apps based on 'order' key."""
+        for model in models:
+            if "submenu" in model:
+                model["submenu"].sort(key=lambda x: x.get("order", 0), reverse=True)
+        return sorted(models, key=lambda x: x.get("order", 0), reverse=True)
+
+    for app in menu:
+        if "models" in app:
+            app["models"] = sort_models(app["models"])
+
+    return sorted(menu, key=get_order_index, reverse=True)
 
 
 @register.simple_tag
@@ -176,7 +201,7 @@ def get_user_menu(user: AbstractUser, admin_site: str = "admin") -> List[Dict]:
 
 
 @register.simple_tag
-def get_practet_dashboard_settings(request: WSGIRequest) -> Dict:
+def get_dashub_settings(request: WSGIRequest) -> Dict:
     """
     Get Practet Dashboard settings, update any defaults from the request, and return
     """
@@ -196,7 +221,7 @@ def get_practet_dashboard_settings(request: WSGIRequest) -> Dict:
 
 
 @register.simple_tag
-def get_practet_dashboard_version() -> str:
+def get_dashub_version() -> str:
     """
     Get the version for this package
     """
@@ -240,7 +265,7 @@ def get_user_avatar(user: AbstractUser) -> str:
 
 
 @register.simple_tag
-def practet_dashboard_paginator_number(change_list: ChangeList, i: int) -> SafeText:
+def dashub_paginator_number(change_list: ChangeList, i: int) -> SafeText:
     """
     Generate an individual page index link in a paginated list.
     """
@@ -254,7 +279,7 @@ def practet_dashboard_paginator_number(change_list: ChangeList, i: int) -> SafeT
         link = change_list.get_query_string({PAGE_VAR: change_list.page_num - 1}) if change_list.page_num > 1 else "#"
         html_str += """
         <li class="page-item previous {disabled}">
-            <a class="page-link" href="{link}" data-dt-idx="0" tabindex="0">«</a>
+            <a class="page-link" href="{link}" data-dt-idx="0" tabindex="0">Previous</a>
         </li>
         """.format(link=link, disabled="disabled" if link == "#" else "")
 
@@ -283,7 +308,7 @@ def practet_dashboard_paginator_number(change_list: ChangeList, i: int) -> SafeT
         link = change_list.get_query_string({PAGE_VAR: change_list.page_num + 1}) if change_list.page_num < i else "#"
         html_str += """
         <li class="page-item next {disabled}">
-            <a class="page-link" href="{link}" data-dt-idx="7" tabindex="0">»</a>
+            <a class="page-link" href="{link}" data-dt-idx="7" tabindex="0">Next</a>
         </li>
         """.format(link=link, disabled="disabled" if link == "#" else "")
 
@@ -300,7 +325,7 @@ def admin_extra_filters(cl: ChangeList) -> Dict:
 
 
 @register.simple_tag
-def practet_dashboard_list_filter(cl: ChangeList, spec: ListFilter) -> SafeText:
+def dashub_list_filter(cl: ChangeList, spec: ListFilter) -> SafeText:
     """
     Render out our list filter in a dropdown friendly format, for use by filter.html, see original implementation here
 
@@ -351,7 +376,7 @@ def jazzy_admin_url(value: Union[str, ModelBase], admin_site: str = "admin") -> 
 
 
 @register.filter
-def has_practet_dashboard_setting(settings: Dict[str, Any], key: str) -> bool:
+def has_dashub_setting(settings: Dict[str, Any], key: str) -> bool:
     return key in settings and settings[key] is not None
 
 
@@ -378,9 +403,9 @@ def get_sections(
         fieldset.is_inline = True
         fieldsets.append(fieldset)
 
-    if hasattr(admin_form.model_admin, "practet_dashboard_section_order"):
+    if hasattr(admin_form.model_admin, "dashub_section_order"):
         fieldsets = order_with_respect_to(
-            fieldsets, admin_form.model_admin.practet_dashboard_section_order, getter=lambda x: x.name
+            fieldsets, admin_form.model_admin.dashub_section_order, getter=lambda x: x.name
         )
 
     return fieldsets
@@ -594,14 +619,14 @@ def render_form_field_class(field, css_class=None):
     if isinstance(field.field, JSONField):
         default_class = "form-control jsoneditor"
     elif isinstance(widget, (
-        widgets.Select,
-        widgets.SelectMultiple
+            widgets.Select,
+            widgets.SelectMultiple
     )):
         default_class = "form-select"
     elif isinstance(widget, (
-        widgets.CheckboxInput,
-        widgets.CheckboxSelectMultiple,
-        widgets.RadioSelect
+            widgets.CheckboxInput,
+            widgets.CheckboxSelectMultiple,
+            widgets.RadioSelect
     )):
         default_class = None
     else:

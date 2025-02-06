@@ -41,19 +41,25 @@ def order_menus_with_order(original: List[Dict[str, Any]], order_list: List[Dict
         if order_entry:
             item["order"] = order_entry["order"]
 
-            if "models" in item and isinstance(item["models"], list):
-                model_order_list = order_entry.get("models", [])
+        if "models" in item and isinstance(item["models"], list):
+            model_order_list = order_entry.get("models", []) if order_entry else []
 
-                for model in item["models"]:
-                    model["order"] = model.get("order", 0)
-                    model_entry = next((m for m in model_order_list if m["model"] == model.get("object_name")), None)
-                    if model_entry:
-                        model["order"] = model_entry["order"]
+            for model in item["models"]:
+                model["order"] = model.get("order", 0)
+                model_entry = next((m for m in model_order_list if m["model"] == model.get("object_name")), None)
+                if model_entry:
+                    model["order"] = model_entry["order"]
 
-                item["models"].sort(key=lambda x: x["order"], reverse=True)
+                # Also order submenus if they exists
+                print("Submenus", model.get("submenus"))
+                if "submenus" in model and isinstance(model["submenus"], list):
+                    model["submenus"] = [submenu.get("order", 0) for submenu in model["submenus"]]
+                    print(model["submenus"])
+                    model["submenus"] = model["submenus"].sort(key=lambda x: x["order"], reverse=True)
+
+            item["models"].sort(key=lambda x: x["order"], reverse=True)
     original.sort(key=lambda x: x["order"], reverse=True)
     return original
-
 
 def get_admin_url(instance: Any, admin_site: str = "admin", from_app: bool = False, **kwargs: str) -> str:
     """

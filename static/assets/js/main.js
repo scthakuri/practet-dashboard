@@ -78,63 +78,6 @@
         }
     });
 
-
-    /**
-     *  Tinymce editor configuration settings
-     */
-    const tinymceSelector = $(document).find(".tinymce");
-    if (tinymceSelector.length > 0) {
-        tinymce.init({
-            selector: '.tinymce',
-            promotion: false,
-            menubar: true,
-            plugins: "codesample link media image code fullscreen table autolink advlist lists autoresize emoticons wordcount",
-            toolbar: [
-                'bold italic underline strikethrough | subscript superscript | list bullist numlist blockquote alignleft aligncenter alignright alignjustify autolink link table',
-                'formatselect autolink forecolor |  subscript superscript | outdent indent | image media emoticons | wordcount codesample fullscreen code'
-            ],
-            image_advtab: false,
-
-            // external_filemanager_path: allsmarttools.adminurl + "assets/modules/filemanager/filemanager/",
-            // filemanager_title: "Filemanager",
-            // external_plugins: { "filemanager": allsmarttools.adminurl + "assets/modules/tinymce/plugins/responsivefilemanager/plugin.js?v=1.0.4" },
-            relative_urls: false,
-            remove_script_host: true,
-            // document_base_url: allsmarttools.siteurl,
-            toolbar_sticky: true,
-            image_dimensions: false,
-            image_class_list: [
-                {
-                    title: 'Responsive',
-                    value: 'img-responsive'
-                }
-            ],
-            table_class_list: [
-                {title: 'Table Bordered', value: 'table table-bordered'},
-                {title: 'None', value: ''}
-            ],
-            noneditable_noneditable_class: 'alert',
-            min_height: 300
-        });
-    }
-
-    const datatableElement = $(document).find('.datatable');
-    if (datatableElement.length > 0) {
-        try {
-            datatableElement.DataTable({
-                paging: true,
-                lengthChange: true,
-                searching: true,
-                ordering: false,
-                info: true,
-                autoWidth: false,
-                responsive: true,
-            });
-        } catch (error) {
-            console.log(error);
-        }
-    }
-
     $(document).on('click', '.password_field .show-hide', function () {
         const parentEle = $(this).parent();
         if (parentEle.length > 0) {
@@ -172,6 +115,19 @@
             location.hash = target;
         }
     })
+
+    const horizontal_tabs = $(document).find(".horizontal_tabs .nav-link");
+    if( horizontal_tabs.length > 0 ){
+        const hash = window.location.hash;
+        if( hash ){
+            const target = $(document).find(".horizontal_tabs .nav-link[href='"+hash+"']");
+            if( target.length > 0 ){
+                target.click();
+            }
+        }else{
+            horizontal_tabs.eq(0).click();
+        }
+    }
 
     const datetimes = $(document).find(".datetime");
     if (datetimes.length > 0) {
@@ -260,6 +216,16 @@
             $(this).toggle(hasVisibleItems);
         });
     });
+
+    $(document).on("change", ".search-filter", function(){
+        const value = $(this).val().trim();
+        const name = $(this).find("option[data-name]").eq(0).attr("data-name");
+        if( value && name ){
+            $(this).attr("name", name);
+        }else{
+            $(this).attr("name", null);
+        }
+    })
 })(jQuery);
 
 

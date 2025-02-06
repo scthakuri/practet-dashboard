@@ -1,4 +1,4 @@
-{% load admin_list practet_dashboard i18n %}
+{% load admin_list dashub i18n %}
 
 <div class="col-5">
     <div class="dataTables_info" role="status" aria-live="polite">
@@ -19,10 +19,10 @@
 </div>
 
 <div class="col-7">
-    <ul class="pagination pagination-sm m-0 float-right">
+    <ul class="pagination justify-content-end">
         {% if pagination_required %}
             {% for i in page_range %}
-                {% practet_dashboard_paginator_number cl i %}
+                {% dashub_paginator_number cl i %}
             {% endfor %}
         {% endif %}
     </ul>

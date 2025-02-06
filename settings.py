@@ -3,9 +3,8 @@ import logging
 from typing import Any, Dict
 
 from django.conf import settings
-from django.templatetags.static import static
 
-from .utils import get_admin_url, get_model_meta, hex_to_rgb
+from .utils import hex_to_rgb
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,6 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     # Hide these models when generating side menu (e.g auth.user)
     "hide_models": [],
     # List of apps to base side menu ordering off of
-    "order_with_respect_to": [],
     "order_menus": [],
     # Custom links to append to side menu app groups, keyed on lower case app label
     # or makes a new group if the given app label doesnt exist in installed apps
@@ -64,41 +62,43 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     # Add a language dropdown into the admin
     "language_chooser": False,
     "theme_color": "#e31837",
+    "model_submenus": {},
+    "related_modal_active": True
 }
 
 CHANGEFORM_TEMPLATES = {
-    "single": "practet_dashboard/includes/single.html",
-    "carousel": "practet_dashboard/includes/carousel.html",
-    "collapsible": "practet_dashboard/includes/collapsible.html",
-    "horizontal_tabs": "practet_dashboard/includes/horizontal_tabs.html",
-    "vertical_tabs": "practet_dashboard/includes/vertical_tabs.html",
+    "single": "dashub/includes/single.html",
+    "carousel": "dashub/includes/carousel.html",
+    "collapsible": "dashub/includes/collapsible.html",
+    "horizontal_tabs": "dashub/includes/horizontal_tabs.html",
+    "vertical_tabs": "dashub/includes/vertical_tabs.html",
 }
 
 
 def get_settings() -> Dict:
-    practet_settings = copy.deepcopy(DEFAULT_SETTINGS)
-    user_settings = {x: y for x, y in getattr(settings, "PRACTET_DASHBOARD_SETTINGS", {}).items() if y is not None}
-    practet_settings.update(user_settings)
+    dashub_settings = copy.deepcopy(DEFAULT_SETTINGS)
+    user_settings = {x: y for x, y in getattr(settings, "DASHHUB_SETTINGS", {}).items() if y is not None}
+    dashub_settings.update(user_settings)
 
     # Deal with single strings in hide_apps/hide_models and make sure we lower case 'em
-    if isinstance(practet_settings["hide_apps"], str):
-        practet_settings["hide_apps"] = [practet_settings["hide_apps"]]
-    practet_settings["hide_apps"] = [x.lower() for x in practet_settings["hide_apps"]]
+    if isinstance(dashub_settings["hide_apps"], str):
+        dashub_settings["hide_apps"] = [dashub_settings["hide_apps"]]
+    dashub_settings["hide_apps"] = [x.lower() for x in dashub_settings["hide_apps"]]
 
-    if isinstance(practet_settings["hide_models"], str):
-        practet_settings["hide_models"] = [practet_settings["hide_models"]]
-    practet_settings["hide_models"] = [x.lower() for x in practet_settings["hide_models"]]
+    if isinstance(dashub_settings["hide_models"], str):
+        dashub_settings["hide_models"] = [dashub_settings["hide_models"]]
+    dashub_settings["hide_models"] = [x.lower() for x in dashub_settings["hide_models"]]
 
     # Ensure icon model names and classes are lower case
-    practet_settings["icons"] = {x.lower(): y.lower() for x, y in practet_settings.get("icons", {}).items()}
+    dashub_settings["icons"] = {x.lower(): y.lower() for x, y in dashub_settings.get("icons", {}).items()}
 
     # Default the site icon using the site logo
-    practet_settings["site_icon"] = practet_settings["site_icon"] or practet_settings["site_logo"]
+    dashub_settings["site_icon"] = dashub_settings["site_icon"] or dashub_settings["site_logo"]
 
     # ensure all model names are lower cased
-    practet_settings["changeform_format_overrides"] = {
-        x.lower(): y.lower() for x, y in practet_settings.get("changeform_format_overrides", {}).items()
+    dashub_settings["changeform_format_overrides"] = {
+        x.lower(): y.lower() for x, y in dashub_settings.get("changeform_format_overrides", {}).items()
     }
 
-    practet_settings["theme_color_rgb"] = hex_to_rgb(practet_settings.get("theme_color", "#30AA99"))
-    return practet_settings
+    dashub_settings["theme_color_rgb"] = hex_to_rgb(dashub_settings.get("theme_color", "#30AA99"))
+    return dashub_settings

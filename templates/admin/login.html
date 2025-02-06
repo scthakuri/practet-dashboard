@@ -1,7 +1,7 @@
 {% extends "registration/base.html" %}
 
-{% load i18n practet_dashboard %}
-{% get_practet_dashboard_settings request as practet_dashboard_settings %}
+{% load i18n dashub %}
+{% get_dashub_settings request as dashub_settings %}
 
 {% block content %}
     <form action="{{ app_path }}" method="post" class="theme-form">
